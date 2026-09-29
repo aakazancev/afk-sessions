@@ -1,0 +1,11 @@
+<!-- Слой для Icon Composer: только марка, без фона.
+     Геометрия ровно та же, что в icon-1024.svg.
+     Ни градиентов, ни теней, ни прозрачности — всё это навешивается
+     в самом Icon Composer. Если импорт отрисует обводку неточно,
+     открой в Figma и примени Outline Stroke. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <path d="M348 318 L538 512 L348 706"
+        fill="none" stroke="#CF7050" stroke-width="68"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="652" cy="652" r="58" fill="#CF7050"/>
+</svg>

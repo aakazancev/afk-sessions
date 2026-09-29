@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AFK Sessions</title>
+<meta name="description" content="Все сессии Claude Code — в строке меню macOS. Разрешайте и отклоняйте без терминала, а отойдя от мака — отвечайте из Telegram.">
+<meta name="theme-color" content="#15120F">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+  :root{
+    --page:#15120F;
+    --panel:#1E1A16;
+    --raise:rgba(255,255,255,.045);
+    --line:rgba(255,255,255,.09);
+    --orange:#D97757;
+    --orange-hi:#E68B6B;
+    --orange-dim:rgba(217,119,87,.14);
+    --green:#8FA86B;
+    --red:#C9605A;
+    --t1:#F2ECE4;
+    --t2:#A79C90;
+    --t3:#6F675F;
+    --ink-on-orange:#231710;
+    --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",system-ui,sans-serif;
+    --display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",system-ui,sans-serif;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --wrap:1120px;
+    --gutter:24px;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:44px}
+  body{
+    margin:0;background:var(--page);color:var(--t1);
+    font:16px/1.55 var(--ui);-webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:inherit}
+  code,kbd{font-family:var(--mono);font-size:.9em}
+  :focus-visible{outline:2px solid var(--orange);outline-offset:3px;border-radius:4px}
+  .wrap{max-width:var(--wrap);margin:0 auto;padding:0 var(--gutter)}
+  h2{font:650 clamp(28px,4vw,40px)/1.1 var(--display);letter-spacing:-.02em;margin:0 0 14px}
+  h3{font:600 17px/1.3 var(--ui);margin:0 0 6px;letter-spacing:-.005em}
+  p{margin:0 0 12px}
+  .lead{color:var(--t2);max-width:60ch;font-size:17px}
+  section{padding:96px 0 0}
+
+  /* ---------- строка меню macOS, она же навигация ---------- */
+  .menubar{
+    position:sticky;top:0;z-index:10;height:30px;
+    background:rgba(30,26,22,.82);
+    -webkit-backdrop-filter:saturate(1.4) blur(18px);backdrop-filter:saturate(1.4) blur(18px);
+    border-bottom:.5px solid var(--line);
+    font-size:13px;
+  }
+  .menubar .wrap{display:flex;align-items:center;height:100%;gap:18px}
+  .menubar nav{display:flex;gap:16px}
+  .menubar nav a{text-decoration:none;color:var(--t1);opacity:.86}
+  .menubar nav a:hover{opacity:1}
+  .menubar .app{font-weight:650}
+  .tray{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--t1)}
+  .clock{font-variant-numeric:tabular-nums;opacity:.86;white-space:nowrap}
+  .status-item{
+    display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 6px;border-radius:5px;
+    font:600 12px/1 var(--mono);color:var(--t1);transition:background .25s,color .25s;
+  }
+  .status-item .caret{font-weight:700}
+  .status-item.hot{background:rgba(217,119,87,.2);color:var(--orange)}
+
+  /* ---------- шапка ---------- */
+  .hero{padding:72px 0 0}
+  .hero .wrap{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:56px;align-items:start}
+  .hero-copy{padding-top:28px}
+  .app-icon{width:108px;height:108px;display:block;margin:0 0 18px -12px}
+  h1{
+    margin:0 0 22px;font:700 clamp(46px,7.4vw,92px)/.95 var(--display);letter-spacing:-.045em;
+  }
+  .tagline{font-size:clamp(19px,2.1vw,23px);line-height:1.4;color:var(--t1);max-width:25em;margin:0 0 34px;letter-spacing:-.01em}
+  .tagline span{color:var(--t2)}
+  .cta{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .btn{
+    display:inline-flex;align-items:center;gap:10px;text-decoration:none;
+    background:var(--orange);color:var(--ink-on-orange);font:650 16px/1 var(--ui);
+    padding:15px 22px;border-radius:9px;transition:background .15s,transform .15s;
+  }
+  .btn:hover{background:var(--orange-hi)}
+  .btn:active{transform:translateY(1px)}
+  .btn svg{width:16px;height:16px}
+  .fine{font-size:13px;color:var(--t3)}
+
+  /* ---------- панель (копия MenuBarView) ---------- */
+  .stage{position:relative;padding-top:8px}
+  .panel{
+    position:relative;width:100%;max-width:400px;margin-left:auto;
+    background:var(--panel);border:.5px solid var(--line);border-radius:12px;
+    box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 .5px rgba(0,0,0,.6);
+    font:12.5px/1.25 var(--ui);color:var(--t1);overflow:hidden;
+    user-select:none;-webkit-user-select:none;
+  }
+  .p-head{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:.5px solid var(--line)}
+  .p-head .mk{font:10.5px var(--mono);color:var(--orange)}
+  .p-head .nm{font-weight:600}
+  .p-head .sp{flex:1}
+  .p-head .wait{font-size:11px;color:var(--orange);transition:opacity .25s}
+  .p-head .wait[hidden]{display:inline;opacity:0}
+  .pill{font-size:11px;color:var(--t2);padding:3px 8px;border-radius:999px;background:var(--raise);box-shadow:inset 0 0 0 .5px var(--line)}
+  .ver{font:10.5px var(--mono);color:var(--t3)}
+  .p-list{padding:4px 0;position:relative}
+  .row{
+    height:54px;margin:0 5px 1px;padding:0 13px;border-radius:7px;
+    display:flex;flex-direction:column;justify-content:center;gap:4px;
+    transition:background .25s;will-change:transform;
+  }
+  .row.sel{background:var(--raise)}
+  .r1,.r2{display:flex;align-items:center;min-width:0}
+  .r1{gap:7px}
+  .r2{gap:8px;padding-left:14px;min-height:20px}
+  .dot{width:7px;height:7px;border-radius:50%;flex:none;transition:background .25s,box-shadow .25s}
+  .dot.working{box-shadow:inset 0 0 0 1.5px var(--t3)}
+  .dot.waiting{background:var(--orange);box-shadow:0 0 0 3px var(--orange-dim)}
+  .dot.done{background:var(--green)}
+  .proj{font:600 12.5px var(--mono);white-space:nowrap}
+  .br{font:10.5px var(--mono);color:var(--t2);background:var(--raise);padding:1px 5px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .lbl{margin-left:auto;font-size:11px;color:var(--t3);font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:8px}
+  .lbl.hot{color:var(--orange)}
+  .act{font-size:11px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .act.pending{color:var(--orange-hi);background:var(--orange-dim);padding:2px 5px;border-radius:4px;font-family:var(--mono)}
+  .r2 .sp{flex:1}
+  .cost{font:10.5px var(--mono);color:var(--t3)}
+  .pb{font:600 11.5px/1 var(--ui);padding:4px 10px;border-radius:5px;white-space:nowrap;transition:background .12s,transform .12s}
+  .pb.accent{background:var(--orange);color:var(--ink-on-orange)}
+  .pb.accent.pressed{background:var(--orange-hi);transform:scale(.94)}
+  .pb.plain{font-weight:500;color:var(--t1);background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 .5px var(--line)}
+  .p-foot{display:flex;align-items:center;gap:6px;padding:8px 13px;border-top:.5px solid var(--line);font:10.5px var(--mono);color:var(--t3);white-space:nowrap}
+  .p-foot .sp{flex:1}
+  .p-foot .dim{color:var(--t2)}
+  .cursor{
+    position:absolute;left:0;top:0;width:18px;height:22px;pointer-events:none;z-index:3;opacity:0;
+    transition:transform .9s cubic-bezier(.3,.7,.2,1),opacity .3s;
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,.5));
+  }
+  .cursor.on{opacity:1}
+  .cursor.click{transition:transform .12s}
+  .stage-note{max-width:400px;margin:18px 0 0 auto;font-size:13.5px;color:var(--t3);line-height:1.5}
+
+  /* ---------- Telegram ---------- */
+  .tg .wrap{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:64px;align-items:center}
+  .tg-points{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:14px;max-width:52ch}
+  .tg-points li{padding-left:22px;position:relative;color:var(--t2)}
+  .tg-points li::before{content:"";position:absolute;left:2px;top:.62em;width:7px;height:7px;border-radius:50%;background:var(--orange)}
+  .tg-points b{color:var(--t1);font-weight:600}
+  .phone{
+    width:100%;max-width:380px;margin:0 auto;border-radius:30px;padding:10px;
+    background:#0C0A09;box-shadow:0 0 0 1px rgba(255,255,255,.07),0 30px 80px rgba(0,0,0,.5);
+  }
+  .chat{border-radius:22px;overflow:hidden;background:#171411;display:flex;flex-direction:column}
+  .chat-top{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#211C18;border-bottom:.5px solid var(--line)}
+  .chat-top img{width:40px;height:40px;margin:-3px}
+  .chat-top b{display:block;font-size:14.5px;font-weight:600;line-height:1.2}
+  .chat-top small{font-size:12px;color:var(--t3)}
+  .feed{padding:14px 10px 12px;display:flex;flex-direction:column;gap:6px;
+    background:radial-gradient(120% 60% at 50% 0%,rgba(217,119,87,.05),transparent 60%)}
+  .msg{max-width:86%;display:flex;flex-direction:column;gap:4px;transition:opacity .35s,transform .35s}
+  .msg.in{align-self:flex-start}
+  .msg.out{align-self:flex-end}
+  .msg.hide{opacity:0;transform:translateY(8px)}
+  .bub{
+    font-size:14px;line-height:1.38;padding:7px 10px 6px;border-radius:14px;white-space:pre-line;overflow-wrap:anywhere;
+    background:#2A241F;color:var(--t1);
+  }
+  .in .bub{border-bottom-left-radius:5px}
+  .out .bub{background:#5A3526;border-bottom-right-radius:5px}
+  .bub time{float:right;margin:6px 0 -2px 10px;font-size:11px;color:rgba(242,236,228,.45)}
+  .bub code{font-size:13px;color:#F0BE9A}
+  .quote{display:block;border-left:2px solid var(--orange-hi);background:rgba(255,255,255,.06);border-radius:4px;padding:3px 7px;margin:0 0 5px;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .quote b{display:block;color:var(--orange-hi);font-weight:600}
+  .note{color:var(--t2)}
+  .kb{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+  .kb span{font-size:13.5px;text-align:center;padding:8px 6px;border-radius:9px;background:rgba(255,255,255,.1);transition:background .15s,transform .15s,opacity .3s}
+  .kb span.pressed{background:rgba(217,119,87,.45);transform:scale(.96)}
+  .kb.fade{opacity:0}
+  .album{display:grid;grid-template-columns:1fr 1fr;gap:3px;border-radius:14px;border-bottom-left-radius:5px;overflow:hidden;width:260px;max-width:100%}
+  .shot{aspect-ratio:1/1;background:#3A342E;display:flex;flex-direction:column;justify-content:flex-end;padding:8px;
+    background-image:linear-gradient(#4A433C 0 0),linear-gradient(#4A433C 0 0),linear-gradient(#4A433C 0 0);
+    background-size:70% 7px,50% 7px,84% 28%;background-position:12px 18px,12px 32px,50% 52px;background-repeat:no-repeat}
+  .shot span{font:11px var(--mono);color:var(--t2)}
+
+  /* ---------- что умеет ---------- */
+  .features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:40px;border-top:.5px solid var(--line)}
+  .feat{padding:28px 28px 30px 0;border-bottom:.5px solid var(--line)}
+  .feat+.feat{padding-left:28px;border-left:.5px solid var(--line)}
+  .feat:nth-child(3n+1){padding-left:0;border-left:0}
+  .feat p{color:var(--t2);font-size:15px;margin:0;max-width:40ch}
+  .feat .glyph{height:24px;margin-bottom:16px;display:flex;align-items:center;gap:6px;font:600 12.5px var(--mono);color:var(--t2)}
+  .glyph .dot{width:9px;height:9px}
+  .glyph kbd{font:11px var(--mono);color:var(--t1);padding:3px 6px;border-radius:5px;background:var(--raise);box-shadow:inset 0 0 0 .5px var(--line)}
+  .glyph .pill.on{background:var(--orange);color:var(--panel);box-shadow:none;font-family:var(--ui)}
+
+  /* ---------- сравнение ---------- */
+  .compare-scroll{margin-top:36px;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px;line-height:1.45;min-width:900px}
+  th,td{text-align:left;vertical-align:top;padding:14px 14px;border-bottom:.5px solid var(--line)}
+  thead th{font-weight:600;font-size:14px;color:var(--t1);border-bottom:1px solid rgba(255,255,255,.16);vertical-align:bottom}
+  tbody th{font-weight:500;color:var(--t2);width:150px;padding-left:0}
+  td{color:var(--t2)}
+  .us{background:rgba(217,119,87,.07);color:var(--t1)}
+  thead .us{color:var(--orange);box-shadow:inset 0 2px 0 var(--orange)}
+  td code{color:var(--t1);background:var(--raise);padding:1px 4px;border-radius:4px}
+  .cards{display:none}
+  .choose{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:36px;margin-top:44px}
+  .choose p{color:var(--t2);font-size:15px;margin:0}
+  .choose b{display:block;color:var(--t1);font-weight:600;font-size:16px;margin-bottom:6px}
+  .choose .mine b{color:var(--orange)}
+  .src{margin-top:28px;font-size:13px;color:var(--t3)}
+
+  /* ---------- установка ---------- */
+  .steps{list-style:none;margin:36px 0 0;padding:0;display:grid;gap:0;counter-reset:s;max-width:760px}
+  .steps>li{counter-increment:s;display:grid;grid-template-columns:44px minmax(0,1fr);gap:0 14px;padding:22px 0;border-top:.5px solid var(--line)}
+  .steps>li::before{content:counter(s);font:600 15px/1 var(--mono);color:var(--orange);width:30px;height:30px;border-radius:50%;
+    display:grid;place-items:center;box-shadow:inset 0 0 0 1px rgba(217,119,87,.45)}
+  .steps p{color:var(--t2);margin:0 0 10px}
+  .steps p:last-child{margin-bottom:0}
+  .steps b{color:var(--t1);font-weight:600}
+  .steps code{color:var(--t1)}
+  .cmd{display:flex;align-items:stretch;margin:4px 0 12px;border-radius:9px;background:#0E0C0A;box-shadow:inset 0 0 0 .5px var(--line);overflow:hidden}
+  .cmd code{flex:1;min-width:0;padding:13px 14px;font-size:13px;color:var(--t1);overflow-wrap:anywhere}
+  .cmd code::before{content:"$ ";color:var(--t3)}
+  .copy{flex:none;border:0;border-left:.5px solid var(--line);background:var(--raise);color:var(--t1);font:500 13px var(--ui);padding:0 16px;cursor:pointer;min-width:112px}
+  .copy:hover{background:rgba(255,255,255,.09)}
+  .copy.ok{color:var(--green)}
+  .aside{margin-top:28px;max-width:760px;padding:18px 20px;border-radius:10px;background:var(--raise);box-shadow:inset 0 0 0 .5px var(--line);color:var(--t2);font-size:15px}
+  .aside b{color:var(--t1)}
+
+  /* ---------- подвал ---------- */
+  footer{margin-top:110px;border-top:.5px solid var(--line);padding:28px 0 40px;font-size:14px;color:var(--t3)}
+  footer .wrap{display:flex;gap:22px;flex-wrap:wrap;align-items:center}
+  footer a{color:var(--t2);text-decoration:none}
+  footer a:hover{color:var(--t1);text-decoration:underline}
+  footer .copy-note{margin-left:auto}
+
+  /* ---------- адаптив ---------- */
+  @media (max-width:980px){
+    .hero .wrap,.tg .wrap{grid-template-columns:minmax(0,1fr);gap:44px}
+    .hero-copy{padding-top:0}
+    .panel,.stage-note{margin-left:0}
+    .features{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .feat:nth-child(3n+1){padding-left:28px;border-left:.5px solid var(--line)}
+    .feat:nth-child(2n+1){padding-left:0;border-left:0}
+    .choose{grid-template-columns:minmax(0,1fr);gap:22px}
+  }
+  @media (max-width:720px){
+    :root{--gutter:16px}
+    section{padding-top:72px}
+    .hero{padding-top:44px}
+    .menubar nav{display:none}
+    .compare-scroll.js{display:none}
+    .cards{display:grid;gap:14px;margin-top:28px}
+    .card{border-radius:12px;padding:18px 18px 8px;background:var(--raise);box-shadow:inset 0 0 0 .5px var(--line)}
+    .card.us{background:rgba(217,119,87,.08);box-shadow:inset 0 0 0 1px rgba(217,119,87,.4)}
+    .card h3{margin-bottom:10px}
+    .card.us h3{color:var(--orange)}
+    .card dl{margin:0}
+    .card dt{font-size:12.5px;color:var(--t3);margin-top:10px}
+    .card dd{margin:2px 0 10px;font-size:14.5px;color:var(--t1);line-height:1.45}
+    .card dd code{background:var(--raise);padding:1px 4px;border-radius:4px}
+    .features{grid-template-columns:minmax(0,1fr)}
+    .feat,.feat+.feat,.feat:nth-child(3n+1){padding:22px 0;border-left:0}
+    .phone{padding:7px;border-radius:26px}
+    .chat{border-radius:20px}
+    footer .copy-note{margin-left:0;width:100%}
+  }
+  @media (max-width:420px){
+    .clock .d{display:none}
+    .p-head .ver{display:none}
+    .row{padding:0 10px}
+    .p-foot{padding:8px 10px;gap:5px}
+    .steps>li{grid-template-columns:32px minmax(0,1fr);gap:0 12px}
+    .steps>li::before{width:26px;height:26px;font-size:13px}
+    .cmd{flex-direction:column}
+    .copy{border-left:0;border-top:.5px solid var(--line);padding:11px 12px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after{transition:none!important;animation:none!important}
+    .cursor{display:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="menubar">
+  <div class="wrap">
+    <span class="app">AFK Sessions</span>
+    <nav aria-label="Разделы">
+      <a href="#telegram">Telegram</a>
+      <a href="#features">Что умеет</a>
+      <a href="#compare">Сравнение</a>
+      <a href="#install">Установка</a>
+    </nav>
+    <div class="tray">
+      <span class="status-item hot" id="statusItem" aria-hidden="true"><span class="caret">›_</span><span id="statusCount">1</span></span>
+      <span class="clock" id="clock"><span class="d">Вт 29 сент.&nbsp;</span><span class="t">14:32</span></span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- 1–2. Шапка и демо панели -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-copy">
+        <img class="app-icon" src="icon.png" alt="" width="108" height="108">
+        <h1>AFK Sessions</h1>
+        <p class="tagline">Все сессии Claude Code — в строке меню. <span>Отошли от мака — отвечайте из Telegram.</span></p>
+        <div class="cta">
+          <a class="btn" href="https://github.com/aakazancev/afk-sessions/releases/latest">
+            <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8.5M4.5 7 8 10.5 11.5 7M3 13.5h10"/></svg>
+            Скачать для macOS
+          </a>
+          <span class="fine">macOS 14+ · бесплатно</span>
+        </div>
+      </div>
+
+      <div class="stage" id="stage">
+        <div class="panel" id="panel" role="img" aria-label="Панель AFK Sessions: четыре сессии; одна просит разрешение выполнить rm -rf .build, её разрешают кнопкой, и она работает дальше.">
+          <div class="p-head">
+            <span class="mk">›_</span>
+            <span class="nm">AFK Sessions</span>
+            <span class="sp"></span>
+            <span class="wait" id="waitCount">1 ждёт вас</span>
+            <span class="pill">Я отошёл</span>
+            <span class="ver">v0.7</span>
+          </div>
+          <div class="p-list" id="list"></div>
+          <div class="p-foot">
+            <span id="footCount">4 сессии</span><span id="footCost">· $3.18 сегодня</span>
+            <span class="sp"></span>
+            <span>Отзыв</span><span class="dim">Настройки…</span><span>Выход</span>
+          </div>
+          <svg class="cursor" id="cursor" viewBox="0 0 18 22" aria-hidden="true"><path d="M1.5 1.5v16.2l4.3-4 2.8 6.3 2.7-1.2-2.8-6.2h5.9z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        </div>
+        <p class="stage-note">Так выглядит панель: сессия просит разрешение и поднимается наверх — нажали «Разрешить», она работает дальше. В строке меню горит счётчик ждущих.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Telegram -->
+  <section class="tg" id="telegram">
+    <div class="wrap">
+      <div>
+        <h2>Отошли от мака — сессии пишут в Telegram</h2>
+        <p class="lead">Включите режим «Я отошёл» пилюлей в панели или командой <code>/afk_start</code> — или он включится сам, когда экран заблокирован. Один ваш бот ведёт все сессии.</p>
+        <ul class="tg-points">
+          <li><b>Закончила ход — пишет «готово»</b> и ждёт. Ответьте reply'ем — сессия продолжит с вашим текстом.</li>
+          <li><b>Просит разрешение — кнопки «Разрешить» / «Отклонить».</b> Решение уходит в сессию сразу.</li>
+          <li><b>Работающей сессии можно написать</b> — текст встанет в очередь и уйдёт после текущего хода.</li>
+          <li><b>Скриншоты Playwright</b> за ход приходят альбомом к «готово».</li>
+        </ul>
+      </div>
+      <div class="phone" aria-label="Пример переписки с ботом">
+        <div class="chat">
+          <div class="chat-top">
+            <img src="icon.png" alt="" width="40" height="40">
+            <div><b>Ваш бот</b><small>бот</small></div>
+          </div>
+          <div class="feed" id="feed">
+            <div class="msg in" data-step="0">
+              <div class="bub">✅ web · main — готово
+
+Шапка свёрстана, тесты зелёные.
+
+Ответьте на это сообщение — сессия продолжит с вашим текстом.<time>14:02</time></div>
+            </div>
+            <div class="msg out" data-step="1">
+              <div class="bub"><span class="quote"><b>Ваш бот</b>✅ web · main — готово</span>Да, и почисти build перед сборкой<time>14:05</time></div>
+            </div>
+            <div class="msg in" data-step="2">
+              <div class="bub" id="gateBub">🔐 web · main
+Просит разрешение:
+<code>rm -rf build</code><span class="note" id="gateNote" hidden>
+
+Решено: разрешено</span><time>14:05</time></div>
+              <div class="kb" id="gateKb"><span id="gateAllow">Разрешить</span><span>Отклонить</span></div>
+            </div>
+            <div class="msg in" data-step="3">
+              <div class="bub">✅ web · main — готово
+
+Пересобрал, скриншоты ниже.
+
+Ответьте на это сообщение — сессия продолжит с вашим текстом.<time>14:07</time></div>
+            </div>
+            <div class="msg in" data-step="4">
+              <div class="album">
+                <div class="shot"><span>home-1280.png</span></div>
+                <div class="shot"><span>home-390.png</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Что умеет -->
+  <section id="features">
+    <div class="wrap">
+      <h2>Что умеет</h2>
+      <div class="features">
+        <div class="feat">
+          <div class="glyph"><span class="dot done"></span><span class="dot working"></span><span class="dot working"></span><span class="dot waiting"></span></div>
+          <h3>Все сессии в одном месте</h3>
+          <p>Каждая сессия Claude Code из терминала — строкой в панели: проект, ветка, что делает сейчас и сколько идёт. Без флагов при запуске.</p>
+        </div>
+        <div class="feat">
+          <div class="glyph"><span class="status-item hot"><span class="caret">›_</span>2</span></div>
+          <h3>Ждущие — наверху</h3>
+          <p>Сессия, которой нужно разрешение, поднимается в начало списка, а в строке меню загорается счётчик. Плюс уведомление macOS.</p>
+        </div>
+        <div class="feat">
+          <div class="glyph"><kbd>⌥Space</kbd><kbd>⌥⇧A</kbd></div>
+          <h3>Разрешить или отклонить без терминала</h3>
+          <p>Кнопки прямо в строке сессии. С клавиатуры: ⌥Space — панель, ⌥⇧A — разрешить верхнюю.</p>
+        </div>
+        <div class="feat">
+          <div class="glyph">Warp · iTerm · Terminal</div>
+          <h3>В нужную вкладку терминала</h3>
+          <p>Клик по сессии — и открывается именно её вкладка в Warp, iTerm или Terminal.</p>
+        </div>
+        <div class="feat">
+          <div class="glyph"><span class="pill on">Я отошёл</span></div>
+          <h3>Режим «Я отошёл» и Telegram</h3>
+          <p>Пилюлей в панели, командой боту или блокировкой экрана. Ответы, разрешения и очередь текста — через одного бота.</p>
+        </div>
+        <div class="feat">
+          <div class="glyph">$3.18 сегодня</div>
+          <h3>Расходы по проектам</h3>
+          <p>Сколько стоили сессии за день и за неделю, по каждому проекту. Считается из транскриптов в <code>~/.claude</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Сравнение -->
+  <section id="compare">
+    <div class="wrap">
+      <h2>Зачем, если есть…</h2>
+      <p class="lead">AFK Sessions не заменяет официальные инструменты — он для тех, кто работает в обычном терминале на своём маке.</p>
+      <div class="compare-scroll" id="compareScroll">
+        <table id="compareTable">
+          <thead>
+            <tr>
+              <th scope="col"><span hidden>Что сравниваем</span></th>
+              <th scope="col" class="us">AFK Sessions</th>
+              <th scope="col">Облачные сессии (claude.ai/code)</th>
+              <th scope="col">Remote Control</th>
+              <th scope="col">Telegram-канал (Channels)</th>
+              <th scope="col">Claude Desktop</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Где работает сессия</th>
+              <td class="us">ваш терминал, ваши файлы и MCP</td>
+              <td>VM Anthropic, клон из GitHub</td>
+              <td>ваш терминал</td>
+              <td>ваш терминал</td>
+              <td>окно Desktop</td>
+            </tr>
+            <tr>
+              <th scope="row">Какие сессии видно</th>
+              <td class="us">все терминальные сразу, без флагов</td>
+              <td>облачные</td>
+              <td>подключённые (<code>/rc</code> или автоподключение)</td>
+              <td>одна на бота, запуск с <code>--channels</code></td>
+              <td>свои; терминальные — нет</td>
+            </tr>
+            <tr>
+              <th scope="row">Разрешить / отклонить</th>
+              <td class="us">в строке меню и в Telegram</td>
+              <td>в браузере/приложении</td>
+              <td>в приложении Claude, пуш</td>
+              <td>кнопками в Telegram</td>
+              <td>в окне сессии</td>
+            </tr>
+            <tr>
+              <th scope="row">Нужно</th>
+              <td class="us">macOS 14+</td>
+              <td>подписка claude.ai</td>
+              <td>подписка claude.ai; не с API-ключом и Bedrock</td>
+              <td>Bun, research preview</td>
+              <td>подписка</td>
+            </tr>
+            <tr>
+              <th scope="row">Сверх этого</th>
+              <td class="us">переход в нужную вкладку терминала (Warp, iTerm, Terminal), расходы по проектам за день и неделю, очередь текста и скриншоты Playwright в Telegram</td>
+              <td>работает с закрытым ноутбуком</td>
+              <td>ответы и пуши в приложении Claude; процесс claude должен жить</td>
+              <td>—</td>
+              <td>split-view, worktree</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="cards" id="compareCards"></div>
+
+      <div class="choose">
+        <p><b>Закрыли ноутбук и ушли</b>Облачные сессии: они идут на VM Anthropic и не зависят от вашего мака. Но не видят локальные незакоммиченные файлы и ваши MCP.</p>
+        <p><b>Живёте в приложении Claude на телефоне</b>Есть подписка claude.ai — Remote Control: ответы и пуши прямо в приложении Claude. Работает с входом через claude.ai, не с API-ключом или Bedrock.</p>
+        <p class="mine"><b>Работаете в терминале на своём маке</b>Warp, iTerm или Terminal, с подпиской, API-ключом или Bedrock; хотите видеть все сессии разом и отвечать из Telegram одним ботом — AFK Sessions.</p>
+      </div>
+      <p class="src">Сверено с документацией code.claude.com 29.09.2026.</p>
+    </div>
+  </section>
+
+  <!-- 6. Установка -->
+  <section id="install">
+    <div class="wrap">
+      <h2>Установка</h2>
+      <p class="lead">Нужно: macOS 14+ и Claude Code в терминале.</p>
+      <ol class="steps">
+        <li>
+          <div>
+            <p><b>Скачайте zip</b> со <a href="https://github.com/aakazancev/afk-sessions/releases/latest">страницы релиза</a>, распакуйте и перетащите <code>AFKSessions.app</code> в «Программы».</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <p><b>Первый запуск.</b> Приложение не подписано у Apple: попробуйте открыть его — macOS его заблокирует. Тогда откройте «Системные настройки → Конфиденциальность и безопасность → Всё равно открыть» или выполните в терминале:</p>
+            <div class="cmd">
+              <code id="xattrCmd">xattr -dr com.apple.quarantine /Applications/AFKSessions.app</code>
+              <button class="copy" type="button" id="copyBtn">Копировать</button>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div>
+            <p><b>В строке меню: «Настройки… → Подключение → Установить».</b> Приложение добавит свои хуки в <code>~/.claude/settings.json</code>, остальные настройки не трогает. Новые сессии Claude Code появятся в панели.</p>
+          </div>
+        </li>
+      </ol>
+      <div class="aside">
+        <b>Telegram — по желанию.</b> Создайте бота у @BotFather командой <code>/newbot</code>, вставьте токен в «Настройки → Telegram» и отправьте боту команду <code>/start &lt;код&gt;</code> — её покажут настройки.
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 7. Подвал -->
+<footer>
+  <div class="wrap">
+    <a href="https://github.com/aakazancev/afk-sessions">GitHub</a>
+    <a href="https://github.com/aakazancev/afk-sessions/issues/new">Сообщить о проблеме</a>
+    <span class="copy-note">© 2026 aakazancev</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- часы в строке меню ----------
+  const clock = $("clock");
+  function tickClock() {
+    const d = new Date();
+    try {
+      const day = new Intl.DateTimeFormat("ru-RU", { weekday: "short", day: "numeric", month: "short" }).format(d);
+      clock.querySelector(".d").textContent = day.charAt(0).toUpperCase() + day.slice(1).replace(",", "") + " ";
+    } catch (e) { /* оставляем статичную дату */ }
+    clock.querySelector(".t").textContent = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  }
+  tickClock();
+  setInterval(tickClock, 15000);
+
+  // ---------- панель: копия MenuBarView / SessionRow ----------
+  // TimeInterval.short из Theme.swift
+  function short(s) {
+    s = Math.floor(s);
+    if (s < 60) return s + " с";
+    const m = Math.floor(s / 60);
+    if (m < 60) return m + " мин";
+    return Math.floor(m / 60) + " ч " + (m % 60) + " мин";
+  }
+  function label(r) {
+    switch (r.state) {
+      case "waiting": return "ждёт " + short(r.age);
+      case "working": return "работает " + short(r.age);
+      default:        return "готово " + short(r.age) + " назад";
+    }
+  }
+
+  const rows = [
+    { id: "web",  proj: "web",  br: "main",          state: "done",    act: "Готово",                 age: 240,  cost: "$0.84" },
+    { id: "api",  proj: "api",  br: "main",          state: "working", act: "$ swift test",           age: 14,   cost: null },
+    { id: "docs", proj: "docs", br: "fix/typos",     state: "working", act: "Читает ~/docs/README.md", age: 760,  cost: "$0.31" },
+    { id: "bot",  proj: "bot",  br: "dev",           state: "working", act: "Ищет по проекту",        age: 3900, cost: "$1.61" },
+  ];
+  const baseTotal = 3.18;
+  const list = $("list");
+  const els = {};
+  let order = ["web", "api", "docs", "bot"];
+  let selected = "web";
+
+  for (const r of rows) {
+    const el = document.createElement("div");
+    el.className = "row";
+    el.innerHTML =
+      '<div class="r1"><span class="dot"></span><span class="proj"></span><span class="br"></span><span class="lbl"></span></div>' +
+      '<div class="r2"><span class="act"></span><span class="sp"></span><span class="tail"></span></div>';
+    el.querySelector(".proj").textContent = r.proj;
+    el.querySelector(".br").textContent = r.br;
+    els[r.id] = el;
+    r.el = el;
+  }
+  const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
+
+  function paintRow(r) {
+    const el = r.el;
+    el.classList.toggle("sel", selected === r.id);
+    el.querySelector(".dot").className = "dot " + r.state;
+    const lbl = el.querySelector(".lbl");
+    lbl.textContent = label(r);
+    lbl.classList.toggle("hot", r.state === "waiting");
+    const act = el.querySelector(".act");
+    act.textContent = r.pending || r.act;
+    act.classList.toggle("pending", !!r.pending);
+    const tail = el.querySelector(".tail");
+    const want = r.state === "waiting" ? "gate" : (r.cost ? "cost:" + r.cost : "");
+    if (tail.dataset.k !== want) {
+      tail.dataset.k = want;
+      if (want === "gate") {
+        tail.innerHTML = '<span style="display:flex;gap:6px"><span class="pb accent" data-allow>Разрешить</span><span class="pb plain">Нет</span></span>';
+      } else if (r.cost) {
+        tail.innerHTML = '<span class="cost"></span>';
+        tail.firstChild.textContent = r.cost;
+      } else {
+        tail.innerHTML = "";
+      }
+    }
+  }
+
+  // FLIP: строка переезжает на новое место плавно
+  function place(newOrder) {
+    const first = {};
+    for (const id of order) first[id] = els[id].getBoundingClientRect().top;
+    order = newOrder;
+    for (const id of order) list.appendChild(els[id]);
+    if (reduce) return;
+    for (const id of order) {
+      const dy = first[id] - els[id].getBoundingClientRect().top;
+      if (!dy) continue;
+      const el = els[id];
+      el.style.transition = "none";
+      el.style.transform = "translateY(" + dy + "px)";
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        el.style.transition = "transform .5s cubic-bezier(.3,.7,.2,1), background .25s";
+        el.style.transform = "";
+      }));
+    }
+  }
+
+  const waitEl = $("waitCount");
+  const statusItem = $("statusItem");
+  const statusCount = $("statusCount");
+  const footCost = $("footCost");
+  function paintChrome() {
+    const waiting = rows.filter((r) => r.state === "waiting").length;
+    const working = rows.filter((r) => r.state === "working").length;
+    waitEl.hidden = waiting === 0;
+    waitEl.textContent = (waiting || 1) + " ждёт вас";
+    // MenuBarLabel: ждут — оранжевая пилюля со счётчиком внимания, иначе — число работающих
+    statusItem.classList.toggle("hot", waiting > 0);
+    statusCount.textContent = waiting > 0 ? waiting : (working || "");
+    const extra = byId.api.cost ? 0.42 : 0;
+    footCost.textContent = "· $" + (baseTotal + extra).toFixed(2) + " сегодня";
+  }
+  function paint() { rows.forEach(paintRow); paintChrome(); }
+
+  for (const id of order) list.appendChild(els[id]);
+
+  const api = byId.api;
+  function setWaiting() {
+    api.state = "waiting"; api.pending = "rm -rf .build"; api.age = 0; selected = "api";
+    place(["api", "web", "docs", "bot"]);
+    paint();
+  }
+
+  if (reduce) {
+    // Статичный кадр: сессия ждёт разрешения
+    setWaiting();
+    api.age = 8;
+    paint();
+  } else {
+    runPanel();
+  }
+
+  function runPanel() {
+    const cursor = $("cursor");
+    const panel = $("panel");
+    let timers = [];
+    const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+
+    // все строки тикают раз в секунду — только пока цикл идёт
+    let running = false;
+    setInterval(() => {
+      if (!running) return;
+      rows.forEach((r) => { r.age++; r.el.querySelector(".lbl").textContent = label(r); });
+    }, 1000);
+
+    function moveCursorTo(el, dx, dy) {
+      const p = panel.getBoundingClientRect();
+      const b = el.getBoundingClientRect();
+      cursor.style.transform = "translate(" + (b.left - p.left + dx) + "px," + (b.top - p.top + dy) + "px)";
+    }
+
+    function cycle() {
+      timers.forEach(clearTimeout); timers = [];
+      // 0 с: работает, «$ swift test»
+      Object.assign(api, { state: "working", act: "$ swift test", pending: null, age: 14, cost: null });
+      selected = "web";
+      cursor.classList.remove("on");
+      cursor.style.transform = "translate(330px,260px)";
+      place(["web", "api", "docs", "bot"]);
+      paint();
+
+      // 3 с: ждёт разрешения — наверх, счётчик в строке меню
+      at(3000, setWaiting);
+      // 4.6 с: курсор идёт к «Разрешить»
+      at(4600, () => {
+        const b = els.api.querySelector("[data-allow]");
+        if (!b) return;
+        cursor.classList.add("on");
+        moveCursorTo(b, b.offsetWidth * 0.55, b.offsetHeight * 0.45);
+      });
+      // 6 с: нажатие
+      at(6000, () => {
+        const b = els.api.querySelector("[data-allow]");
+        if (b) b.classList.add("pressed");
+        cursor.classList.add("click");
+        cursor.style.transform += " scale(.88)";
+      });
+      // 6.3 с: разрешено — снова работает
+      at(6300, () => {
+        cursor.style.transform = cursor.style.transform.replace(" scale(.88)", "");
+        cursor.classList.remove("click");
+        Object.assign(api, { state: "working", pending: null, act: "Выполняет", age: 0 });
+        paint();
+      });
+      at(7000, () => cursor.classList.remove("on"));
+      at(7800, () => { api.act = "$ swift test"; paint(); });
+      // 10 с: готово
+      at(10000, () => { Object.assign(api, { state: "done", act: "Готово", age: 0, cost: "$0.42" }); paint(); });
+      at(12400, cycle);
+    }
+
+    // Не крутим цикл, пока панель вне экрана
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => {
+        const vis = entries[0].isIntersecting;
+        if (vis && !running) { running = true; cycle(); }
+        else if (!vis && running) { running = false; timers.forEach(clearTimeout); timers = []; }
+      });
+      io.observe(panel);
+    } else {
+      running = true; cycle();
+    }
+    paint();
+  }
+
+  // ---------- Telegram: сообщения по очереди, один раз ----------
+  const feed = $("feed");
+  const msgs = Array.from(feed.querySelectorAll(".msg"));
+  function finalChat() {
+    $("gateNote").hidden = false;
+    $("gateKb").remove();
+  }
+  if (reduce || !("IntersectionObserver" in window)) {
+    finalChat();
+  } else {
+    msgs.forEach((m) => m.classList.add("hide"));
+    const show = (i) => {
+      const m = msgs[i];
+      requestAnimationFrame(() => requestAnimationFrame(() => m.classList.remove("hide")));
+    };
+    const io = new IntersectionObserver((entries, obs) => {
+      if (!entries[0].isIntersecting) return;
+      obs.disconnect();
+      const seq = [
+        [200, () => show(0)],
+        [1500, () => show(1)],
+        [2700, () => show(2)],
+        [4100, () => $("gateAllow").classList.add("pressed")],
+        [4500, () => { $("gateKb").classList.add("fade"); }],
+        [4800, () => { $("gateKb").remove(); $("gateNote").hidden = false; }],
+        [6000, () => show(3)],
+        [7000, () => show(4)],
+      ];
+      seq.forEach(([ms, fn]) => setTimeout(fn, ms));
+    }, { threshold: 0.4 });
+    io.observe(feed);
+  }
+
+  // ---------- сравнение: на телефоне — карточки по продукту ----------
+  const table = $("compareTable");
+  const cards = $("compareCards");
+  const heads = Array.from(table.tHead.rows[0].cells).slice(1);
+  const bodyRows = Array.from(table.tBodies[0].rows);
+  heads.forEach((th, c) => {
+    const card = document.createElement("article");
+    card.className = "card" + (c === 0 ? " us" : "");
+    const h = document.createElement("h3");
+    h.textContent = th.textContent;
+    const dl = document.createElement("dl");
+    bodyRows.forEach((tr) => {
+      const dt = document.createElement("dt");
+      dt.textContent = tr.cells[0].textContent;
+      const dd = document.createElement("dd");
+      dd.innerHTML = tr.cells[c + 1].innerHTML;
+      dl.append(dt, dd);
+    });
+    card.append(h, dl);
+    cards.appendChild(card);
+  });
+  $("compareScroll").classList.add("js");
+
+  // ---------- копирование команды ----------
+  const btn = $("copyBtn");
+  const cmd = $("xattrCmd");
+  function selectCmd() {
+    const range = document.createRange();
+    range.selectNodeContents(cmd);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    btn.textContent = "⌘C";
+    setTimeout(() => { btn.textContent = "Копировать"; }, 2500);
+  }
+  btn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(cmd.textContent);
+      btn.textContent = "Скопировано";
+      btn.classList.add("ok");
+      setTimeout(() => { btn.textContent = "Копировать"; btn.classList.remove("ok"); }, 1800);
+    } catch (e) {
+      selectCmd();
+    }
+  });
+})();
+</script>
+</body>
+</html>
